@@ -8,7 +8,7 @@ classdef watd_MSO44 < handle
         reps;       % repetitions to perform when averaging
         wait;       % wait time before pulling trace off the scope
         buff;       % tcpip input buffer size
-        XZE; XIN; YZE; YMU; YOF;
+        XZE; XIN; YZE; YMU; YOF; % parameters to interpret trace data pulled off the scope
     end
 
     methods
@@ -17,11 +17,11 @@ classdef watd_MSO44 < handle
             s.set_ch(ch);
             s.set_avg(avg);
 
-            fprintf(scope, 'MEASU:MEAS1:TYPE MEAN');
+            fprintf(scope, 'MEASU:MEAS1:TYPE MEAN');                        % set up MEAS1 as the mean of the trace (this can be queried later)
             msg = sprintf('MEASU:MEAS1:SOURCE CH%d', ch);
             fprintf(scope, msg);
             
-            fprintf(scope, 'WFMO:ENCdg BINary');
+            fprintf(scope, 'WFMO:ENCdg BINary');                            % change the encoding scheme for queried waveform to binary
             s.update_WFMO()
         end
 
@@ -57,15 +57,15 @@ classdef watd_MSO44 < handle
 
         function y = bal_meas(s)
             pause(0.2);
-            y = str2double(query(s.scope, 'MEASU:MEAN1:VAL?'));
+            y = str2double(query(s.scope, 'MEASU:MEAN1:VAL?'));             % for the purposes of balancing, just pull the mean of the trace
         end
 
         function [t, V] = watd(s)
             pause(1);
             data = query(s.scope, 'CURVe?');
             header_len = str2double(data(2)) + 2;
-            curve = typecast(uint8(data(header_len:end)), 'int16');
-            V = ((curve-s.YOF)*s.YMU) + s.YZE;
+            curve = typecast(uint8(data(header_len:end)), 'int16');         % decode back into numeric array
+            V = ((curve-s.YOF)*s.YMU) + s.YZE;                              % convert to time and voltage with the right units
             t = (0:length(V) - 1)*s.XIN + s.XZE;
         end
 
