@@ -14,7 +14,7 @@ DTG5274.name = 'DTG';
 DTG5274.COM = 27;
 DTG5274.adaptor = 'ni';
 
-%% Load the scope
+%% Load the DTG
 ind = smloadinst('DTG5274', [], DTG5274.adaptor, 0, DTG5274.COM);
 
 % open GPIB communication
