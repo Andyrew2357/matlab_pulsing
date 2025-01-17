@@ -21,7 +21,8 @@ classdef watd_MSO44 < handle
             msg = sprintf('MEASU:MEAS1:SOURCE CH%d', ch);
             fprintf(scope, msg);
             
-            fprintf(scope, 'WFMO:ENCdg BINary');                            % change the encoding scheme for queried waveform to binary
+            fprintf(scope, 'DATA:WIDTh 4');
+            fprintf(scope, 'DATA:ENCdg ASCII');                             % change the encoding scheme for queried waveform to ASCII
             s.update_WFMO()
         end
 
@@ -57,15 +58,13 @@ classdef watd_MSO44 < handle
 
         function y = bal_meas(s)
             pause(0.2);
-            y = str2double(query(s.scope, 'MEASU:MEAN1:VAL?'));             % for the purposes of balancing, just pull the mean of the trace
+            y = str2double(query(s.scope, 'MEASU:MEAS1:VAL?'));             % for the purposes of balancing, just pull the mean of the trace
         end
 
         function [t, V] = watd(s)
             pause(1);
-            data = query(s.scope, 'CURVe?');
-            header_len = str2double(data(2)) + 2;
-            curve = typecast(uint8(data(header_len:end)), 'int16');         % decode back into numeric array
-            V = ((curve-s.YOF)*s.YMU) + s.YZE;                              % convert to time and voltage with the right units
+            data = str2num(query(s.scope, 'CURVe?'));
+            V = ((data-s.YOF)*s.YMU) + s.YZE;                               % convert to time and voltage with the right units
             t = (0:length(V) - 1)*s.XIN + s.XZE;
         end
 
