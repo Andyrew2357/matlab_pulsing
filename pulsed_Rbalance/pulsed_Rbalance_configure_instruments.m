@@ -26,11 +26,12 @@ function pshaper = open_pshaper(pshaper_config)
     cntrlf = pshaper_config.cntrlf;
     max_step = pshaper_config.max_step;
     wait = pshaper_config.wait;
+    gain = pshaper_config.gain;
     address = pshaper_config.address;
     DCvals = pShaper_config.DCvals;
     DCbox = constructor_fn(constructor_args{:});
     fopen(DCbox);
-    pshaper = pulseShaper(DCbox, cntrlf, max_step, wait, address, DCvals);
+    pshaper = pulseShaper(DCbox, cntrlf, max_step, wait, gain, address, DCvals);
 end
 
 %% Set up the Waveform Averager

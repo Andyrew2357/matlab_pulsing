@@ -31,23 +31,42 @@ function success = pulsed_Rbalance_balance(config)
     % create the log for this balance point and record the excitation voltage
     log.Vx = Vx; log.success; log.terminated; log.tries; log.res; log.history = {};
 
-    % Never attempt to provide a balance pulse corresponding to negative R
-    if Vx > 0, max_Vy = min([max_Vy, 0]); elseif Vx < 0, min_Vy = max([min_Vy, 0]); end
+    % Never attempt to provide a negative bias to the pulse shaper
+    min_Vy = max([min_Vy, 0]);
 
     % Guess the balance point (this can be more sophisticated as we improve)    
-    % Make the initial guesses. In this case choose R=1/2 and R=2
-    xa = clip(-2*Vx, min_Vy, max_Vy);
-    xb = clip(-0.5*Vx, min_Vy, max_Vy);
-    % LOGGGGINGGGGG
-
-    puls.sweep("Vy1", xa); ya = watd.bal_meas();                            % take the measurement at xa
-    puls.sweep("Vy1", xb); yb = watd.bal_meas();                            % take the measurement at xb
-    log.history = [log.history, struct('method', "GUESS", 'xa', xa, ...
-                                        'xb', xb, 'ya', ya, 'yb', yb)];     % add to the log history
+    % Determine which points to take for initial guesses. In this case choose R=1/2 and R=2
+    xa = clip(2*Vx, min_Vy, max_Vy);
+    xb = clip(0.5*Vx, min_Vy, max_Vy);
     
+    % Take measurements at the points for the initial guesses. If either
+    % happens to be good enough, terminate early.
+    need_refinements = true;
+    puls.sweep("Vy1", xa); ya = watd.bal_meas();                            % take the measurement at xa
+    
+    if abs(ya) < thresh                                                     % terminate early if we're close enough
+        need_refinements = false; 
+        success = true;
+        log.terminated = "GOOD_GUESS";                                      % record termination condition
+    end
+    
+    if need_refinements
+        puls.sweep("Vy1", xb); yb = watd.bal_meas();                        % take the measurement at xb
+        log.history = [log.history, struct('method', "GUESS", 'xa', xa, ...
+                                           'xb', xb, 'ya', ya, 'yb', yb)];  % add to the log history
+        
+        if abs(yb) < thresh                                                 % terminate early if we're close enough
+            need_refinements = false; 
+            success = true;
+            log.terminated = "GOOD_GUESS";                                  % record termination condition
+        end
+    end
+    
+    % Assuming we didn't luck out on our initial guesses, proceed by a root
+    % finding algorithm (ITP if bracketed, secant if not)
     good_bracket = false;                                                   % are we guaranteed to enclose at root in [xa, xb]
     tries = 0;
-    while 1                                                                 % attempt to find an optimal balance point
+    while need_refinements                                                  % attempt to find an optimal balance point
         tries = tries + 1;
         if tries > max_try                                                  % failed to find a balance point satisfying error bound
             log.terminated = "MAX_TRIES";                                   % record termination condition
@@ -71,9 +90,9 @@ function success = pulsed_Rbalance_balance(config)
                 break
             end
 
-        else                                                                % attempt to find a good bracket
+        else                                                                % attempt to find a good bracket by proceeding with secant method
             
-            if abs(ya) < thresh                                             % regardless of errt, if we get a sufficiently small signal, terminate early.
+            if abs(ya) < thresh                                             % regardless of errt, if we get a sufficiently small signal, terminate early
                 puls.sweep("Vy1", xa);
                 log.terminated = "THRESHOLD_SIGNAL_MET";                    % record termination condition
                 success = true;

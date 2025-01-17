@@ -18,6 +18,7 @@ pshaper_config.constructor_args = {'COM3', ...                              % na
 pshaper_config.cntrlf = @AD5764;                                            % control function for the pulse shaper
 pshaper_config.max_step = 0.05;                                             % maximum voltage step to take when sweeping
 pshaper_config.wait = 0.1;                                                  % wait time between steps when sweeping
+pshaper_config.gain = 0.1;
 pshaper_config.address = [1, 2, 3, 4];                                      % which outputs on the DC box correspond to Vx1, Vy1, Vx2, Vy2
 pshaper_config.DCvals = [0, 0, 0, 0];                                       % starting values for outputs on the DC box
 
