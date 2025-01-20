@@ -34,5 +34,5 @@ watd_config.ch = 1;                                                         % wh
 watd_config.avg = 10240;                                                    % how many averages to take for a waveform
 
 % save as a .mat
-path = 'C:\Users\avdif\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trial_inst_config.mat';
+path = 'C:\Users\avdif\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\MSO44_trial_inst_config.mat';
 save(path, 'DTG_config', 'pshaper_config', 'watd_config');
