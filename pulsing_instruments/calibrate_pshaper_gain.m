@@ -29,8 +29,8 @@ function gain = calibrate_pshaper_gain(pshaper, scope, Vin)
     pshaper.sweep("Vy1", 0);
     
     p = polyfit([Vin, Vin], [Vx1out, Vy1out], 1);
-    fprintf('Fit Parameters: slope=%d, intercept=%d', p{:});
-    gain = p{1};
+    fprintf('Fit Parameters: slope=%d, intercept=%d\n', p(:));
+    gain = p(1);
     pshaper.gain = gain;
 
     plot(Vin, Vx1out, 'r-', Vin, Vy1out, 'b-', Vin, polyval(p, Vin), 'g--');
