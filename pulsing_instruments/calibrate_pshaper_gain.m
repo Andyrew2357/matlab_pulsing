@@ -11,18 +11,22 @@ function gain = calibrate_pshaper_gain(pshaper, scope, Vin)
     Vx1out = [];
     fprintf(scope, 'DISplay:SELect:SOUrce CH1');
     for V=0:0.2:5
+        pshaper.sweep("Vx1", V);
         cursor = split(query(scope, 'DISplay:WAVEView:CURSor?'), ";");
         Vout = str2double(cursor{8});
         Vx1out = [Vx1out, Vout];
     end
+    pshaper.sweep("Vx1", 0);
     
     fprintf(scope, 'DISplay:SELect:SOUrce CH2');
     Vy1out = [];
     for V=0:0.2:5
+        pshaper.sweep("Vy1", V);
         cursor = split(query(scope, 'DISplay:WAVEView:CURSor?'), ";");
         Vout = str2double(cursor{8});
         Vy1out = [Vy1out, -Vout];
     end
+    pshaper.sweep("Vy1", 0);
     
     p = polyfit([Vin, Vin], [Vx1out, Vy1out], 1);
     fprintf('Fit Parameters: slope=%d, intercept=%d', p{:});
