@@ -81,7 +81,7 @@ classdef pulseShaper < handle
             target = start;                                 
             for i=1:num_step
                 target = target + eta*step;
-                disp(target);
+                % disp(target);
                 s.cntrlf(s.DCbox, s.address(ch), target/s.gain);            % take the step
                 pause(wait);                                                % wait before proceeding
             end

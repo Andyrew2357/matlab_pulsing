@@ -10,7 +10,7 @@ function gain = calibrate_pshaper_gain(pshaper, scope, Vin)
 
     Vx1out = [];
     fprintf(scope, 'DISplay:SELect:SOUrce CH1');
-    for V=0:0.2:5
+    for V=Vin
         pshaper.sweep("Vx1", V);
         cursor = split(query(scope, 'DISplay:WAVEView:CURSor?'), ";");
         Vout = str2double(cursor{8});
@@ -20,7 +20,7 @@ function gain = calibrate_pshaper_gain(pshaper, scope, Vin)
     
     fprintf(scope, 'DISplay:SELect:SOUrce CH2');
     Vy1out = [];
-    for V=0:0.2:5
+    for V=Vin
         pshaper.sweep("Vy1", V);
         cursor = split(query(scope, 'DISplay:WAVEView:CURSor?'), ";");
         Vout = str2double(cursor{8});

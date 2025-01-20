@@ -51,6 +51,12 @@ fprintf(DTG, 'TBAS:RUN ON');                                                % tu
 % of the pulse, regardless of polarity. For negative Vx, we simply change 
 % the polarity of both channels (they are always opposite each other).
 
+%% Here are my current delay settings
+% 1-A1: 0.0000400 us
+% 1-A2: 0.0042500 us
+% 1-C1: 0.0151540 us
+% 1-C2: 0.0024100 us
+
 %% Create the balancing script config
 logfilepath = 'C:\Users\avdif\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\bal_log.txt';
 logfile = fopen(logfilepath, 'a+');                                         % open the log file for balancing
@@ -61,14 +67,14 @@ bal_config.logfile = logfile;
 bal_config.errt = 0.005;        % 0.01 V
 bal_config.thresh = 0.005;      % 0.01 V
 bal_config.max_try = 10;
-bal_config.min_Vy =  0;         %  0 V
-bal_config.max_Vy =  1;         %  1.0 V
+bal_config.min_Vy =  0;         %  0.00 V
+bal_config.max_Vy =  0.43;      %  0.43 V
 
 %% Sweep excitation amplitude and balance at each point
 sweep_log_path = 'C:\Users\avdif\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\sweep_log.txt';
 sweep_log = fopen(sweep_log_path, 'a+');
 
-for Vx=0.1:0.1:0.5
+for Vx=0.1:0.01:0.2
     fprintf('Changing Excitation to %d V -------------------------\n', Vx);
     result.Vx = Vx; result.Vy; result.R; result.t; result.V;                % set up the result struct that will be logged later
     pulseshaper.sweep("Vx1", Vx);                                           % sweep to the right excitation amplitude
