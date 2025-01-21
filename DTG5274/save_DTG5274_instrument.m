@@ -20,5 +20,5 @@ inst.name = '';
 inst.type = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 inst.channels = char(cellfun(@char, {'IDN', 'CAL', 'RUN', 'CLK_FREQ', 'MODE', 'P_POLARITY', 'P_LDELAY', 'P_WIDTH', 'P_HIGH', 'P_LOW', 'P_OFFSET', 'P_DCYCLE', 'P_RELRATE'}, 'UniformOutput', false));
 inst.channels
-filePath = 'C:\Users\graphene\Documents\MATLAB\special-measure\instruments\sminst_DTG5274.mat';
+filePath = 'C:\Users\pulsing_meas\Documents\MATLAB\Special_Measure_JPB\instruments\sminst_DTG5274.mat';
 save(filePath, 'constructor', 'inst');

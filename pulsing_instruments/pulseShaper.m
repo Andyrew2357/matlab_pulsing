@@ -11,6 +11,7 @@ classdef pulseShaper < handle
                                 % the shaper attenuates whatever signal it
                                 % gets from the DCbox, so we need to
                                 % divide out the gain to set the DC box
+        hard_lim = 0.43;
     end
 
     methods
@@ -34,6 +35,11 @@ classdef pulseShaper < handle
                 warning('pulseShaper channels are Vx1|Vy1|Vx2|Vy2.');
                 return;
             end
+
+            if val > s.hard_lim 
+                error('value surpasses max V for pulse shaper.');
+            end
+
             s.cntrlf(s.DCbox, s.address(ch), val/s.gain);
             switch ch
                 case "Vx1"
@@ -69,6 +75,10 @@ classdef pulseShaper < handle
                 warning('pulseShaper channels are Vx1|Vy1|Vx2|Vy2.');
                 return;
             end
+
+            if val > s.hard_lim 
+                error('value surpasses max V for pulse shaper.');
+            end
             
             if ~exist('max_step', 'var'), max_step = s.max_step; end
             if ~exist('wait', 'var'), wait = s.wait; end
@@ -86,6 +96,8 @@ classdef pulseShaper < handle
                 pause(wait);                                                % wait before proceeding
             end
             
+            s.cntrlf(s.DCbox, s.address(ch), val/s.gain);                   % sometimes we wind up very slightly off, so jump there at the end
+
             switch ch
                 case "Vx1"
                     s.Vx1 = val;

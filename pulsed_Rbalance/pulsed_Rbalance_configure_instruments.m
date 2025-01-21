@@ -11,6 +11,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function DTG = open_DTG(DTG_config)
+    disp(DTG_config)
     constructor_fn = DTG_config.constructor_fn;
     constructor_args = DTG_config.constructor_args;
     DTG = constructor_fn(constructor_args{:});
@@ -28,7 +29,7 @@ function pshaper = open_pshaper(pshaper_config)
     wait = pshaper_config.wait;
     gain = pshaper_config.gain;
     address = pshaper_config.address;
-    DCvals = pShaper_config.DCvals;
+    DCvals = pshaper_config.DCvals;
     DCbox = constructor_fn(constructor_args{:});
     fopen(DCbox);
     pshaper = pulseShaper(DCbox, cntrlf, max_step, wait, gain, address, DCvals);
@@ -52,5 +53,6 @@ function watd = open_watd_MSO44(watd_config)
     fopen(scope);
     ch = watd_config.ch;
     avg = watd_config.avg;
-    watd = watd_MSO44(scope, ch, avg);
+    cap_coupled = watd_config.cap_coupled;
+    watd = watd_MSO44(scope, ch, avg, cap_coupled);
 end

@@ -2,20 +2,23 @@
 
 classdef watd_MSO44 < handle
     properties
-        scope;      % reference to the relevant port for communicating with the scope
-        ch;         % relevant channel on which to perform averages
-        avg;        % number of averages to take for a single trace
-        reps;       % repetitions to perform when averaging
-        wait;       % wait time before pulling trace off the scope
-        buff;       % tcpip input buffer size
+        scope;          % reference to the relevant port for communicating with the scope
+        ch;             % relevant channel on which to perform averages
+        avg;            % number of averages to take for a single trace
+        reps;           % repetitions to perform when averaging
+        wait;           % wait time before pulling trace off the scope
+        buff;           % tcpip input buffer size
         XZE; XIN; YZE; YMU; YOF; % parameters to interpret trace data pulled off the scope
+        averaging;      % determines whether we're in averaging or high res mode
+        cap_coupled;    % is the output capacitively coupled to the balance point
     end
 
     methods
-        function s = watd_MSO44(scope, ch, avg)
+        function s = watd_MSO44(scope, ch, avg, cap_coupled)
             s.scope=scope; 
             s.set_ch(ch);
             s.set_avg(avg);
+            s.cap_coupled = cap_coupled;
 
             fprintf(scope, 'MEASU:MEAS1:TYPE MEAN');                        % set up MEAS1 as the mean of the trace (this can be queried later)
             msg = sprintf('MEASU:MEAS1:SOURCE CH%d', ch);
@@ -24,6 +27,8 @@ classdef watd_MSO44 < handle
             fprintf(scope, 'DATA:WIDTh 4');
             fprintf(scope, 'DATA:ENCdg ASCII');                             % change the encoding scheme for queried waveform to ASCII
             s.update_WFMO()
+
+            s.averaging = false;
         end
 
         function set_ch(s, val)
@@ -57,15 +62,39 @@ classdef watd_MSO44 < handle
         end
 
         function y = bal_meas(s)
+            if s.cap_coupled
+                [~, V] = s.watd();
+                y = mean(V);
+                return
+            end
+
+            s.set_bal_meas_mode();
             pause(0.2);
             y = str2double(query(s.scope, 'MEASU:MEAS1:VAL?'));             % for the purposes of balancing, just pull the mean of the trace
         end
 
         function [t, V] = watd(s)
+            s.set_averaging_mode();
             pause(1);
             data = str2num(query(s.scope, 'CURVe?'));
             V = ((data-s.YOF)*s.YMU) + s.YZE;                               % convert to time and voltage with the right units
             t = (0:length(V) - 1)*s.XIN + s.XZE;
+        end
+        
+        function set_averaging_mode(s)                                      % If we're not already in averaging mode, turn it on and enable fastacq
+            if s.averaging, return; end
+            fprintf(s.scope, 'FASTAcq:STATE ON');
+            fprintf(s.scope, 'ACQuire:MODE AVERage');
+            fprintf(s.scope, 'CLEAR');
+            s.averaging = true;
+        end
+
+        function set_bal_meas_mode(s)                                       % If we're not already in high-res mode, turn it on and disable fastacq
+            if ~s.averaging, return; end
+            fprintf(s.scope, 'FASTAcq:STATE OFF');
+            fprintf(s.scope, ':ACQuire:MODE HIRes');
+            s.averaging = false;
+            pause(0.5)
         end
 
     end

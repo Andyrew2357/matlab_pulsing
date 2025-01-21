@@ -29,21 +29,27 @@ function success = pulsed_Rbalance_balance(config)
     
     Vx = puls.get("Vx1");
     % create the log for this balance point and record the excitation voltage
-    log.Vx = Vx; log.success; log.terminated; log.tries; log.res; log.history = {};
+    log.Vx = Vx; 
+    log.success = false; 
+    log.terminated = "NULL"; 
+    log.tries = 0; 
+    log.res = "NULL";
+    log.history = {};
 
     % Never attempt to provide a negative bias to the pulse shaper
     min_Vy = max([min_Vy, 0]);
 
     % Guess the balance point (this can be more sophisticated as we improve)    
-    % Determine which points to take for initial guesses. In this case choose R=1/2 and R=2
-    xa = clip(2*Vx, min_Vy, max_Vy);
+    % Determine which points to take for initial guesses. In this case
+    % choose R=0.3 and R=0.5
+    xa = clip(0.3*Vx, min_Vy, max_Vy);
     xb = clip(0.5*Vx, min_Vy, max_Vy);
-    
+
     % Take measurements at the points for the initial guesses. If either
     % happens to be good enough, terminate early.
     need_refinements = true;
     puls.sweep("Vy1", xa); ya = watd.bal_meas();                            % take the measurement at xa
-    
+
     if abs(ya) < thresh                                                     % terminate early if we're close enough
         need_refinements = false; 
         success = true;
@@ -54,7 +60,7 @@ function success = pulsed_Rbalance_balance(config)
         puls.sweep("Vy1", xb); yb = watd.bal_meas();                        % take the measurement at xb
         log.history = [log.history, struct('method', "GUESS", 'xa', xa, ...
                                            'xb', xb, 'ya', ya, 'yb', yb)];  % add to the log history
-        
+
         if abs(yb) < thresh                                                 % terminate early if we're close enough
             need_refinements = false; 
             success = true;
@@ -76,8 +82,8 @@ function success = pulsed_Rbalance_balance(config)
         end
 
         if good_bracket                                                     % converge on the balance point using ITP
-
-            xITP = bracket.get_xITP();                                      % no need to check for clipping if we already have a bracket
+            
+            bracket.get_xITP(); xITP = bracket.xITP;                        % no need to check for clipping if we already have a bracket
             puls.sweep("Vy1", xITP); yITP = watd.bal_meas();
             met_errt = bracket.update_bracket(yITP);                        % update the bracket based on the new measurement
             
@@ -138,4 +144,6 @@ function success = pulsed_Rbalance_balance(config)
 
     encoded_log = erase(jsonencode(log), newline);                          % encode the log as a json formatted string, removing all newline characters                        
     fprintf(logfile, '%s\n', encoded_log);                                  % write everything to the log file as a line in json format
+
+    fprintf('terminated: %s\n', log.terminated);
 end

@@ -32,7 +32,7 @@ classdef bracket_ITP < handle
             assert(eps>0, 'In bracket_ITP: eps must be positive.')
             s.a = a; s.b = b;
             assert(a<b, 'In bracket_ITP: a must be less than b.')
-            assert(~ya==yb, 'In bracket_ITP: ya and yb cannot be equal.')
+            assert(~(ya==yb), 'In bracket_ITP: ya and yb cannot be equal.')
             s.eta = sign(yb - ya);
             s.ya = s.eta*ya; s.yb = s.eta*yb;
             
@@ -42,7 +42,7 @@ classdef bracket_ITP < handle
             if exist('n0', 'var'), s.n0 = n0; else, s.n0 = 1; end
 
             % preprocessed parameters
-            s.n12 = ceil(log2((b-a)/2));
+            s.n12 = ceil(log2((b-a)/(2*eps)));
             s.nmax = s.n0 + s.n12;
             s.j = 0;
         end
