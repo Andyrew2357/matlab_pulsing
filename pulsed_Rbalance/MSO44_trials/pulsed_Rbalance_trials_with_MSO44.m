@@ -50,8 +50,8 @@ pulseshaper.set("Vx2", 0.0);
 pulseshaper.set("Vy2", 0.0);
 
 %%
-pulseshaper.sweep("Vx1", 0.0);
-pulseshaper.sweep("Vy1", 0.0);
+pulseshaper.sweep("Vx1", 0.4);
+pulseshaper.sweep("Vy1", 0.4);
 pulseshaper.sweep("Vx2", 0.0);
 pulseshaper.sweep("Vy2", 0.0);
 
@@ -82,7 +82,7 @@ plot(t, V);
 % 1-C2: 0.0019100 us
 
 %% Create the balancing script config
-logfilepath = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\bal_log_0.3_2.txt';
+logfilepath = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\bal_log_0.3_2_ver2.txt';
 logfile = fopen(logfilepath, 'a+');                                         % open the log file for balancing
 
 bal_config.watd     =   watd;
@@ -90,11 +90,11 @@ bal_config.puls     =   pulseshaper;
 bal_config.logfile  =   logfile;
 if inst_config.watd_config.cap_coupled
     % for cap_coupled, this seemed to work okay.
-    bal_config.errt = 0.01;                 % 10 mV
+    bal_config.errt = 0.005;                % 5 mV
     bal_config.thresh = 4.5e-5;             % 45 uV
 else
     % for non-cap_coupled this seemed to work okay.
-    bal_config.errt     =   0.01;           % 10 mV
+    bal_config.errt     =   0.005;          % 5 mV
     bal_config.thresh   =   4e-4;           % 400 uV
 end
 bal_config.max_try  =   10;
@@ -102,7 +102,7 @@ bal_config.min_Vy   =   0;              %  0.00 V
 bal_config.max_Vy   =   0.43;           %  0.43 V
 
 %% Sweep excitation amplitude and balance at each point
-sweep_log_path = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\sweep_log_0.3_2.txt';
+sweep_log_path = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\sweep_log_0.3_2_ver2.txt';
 sweep_log = fopen(sweep_log_path, 'a+');
 
 for Vx=0.1:0.01:0.2

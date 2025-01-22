@@ -81,7 +81,7 @@ classdef watd_MSO44 < handle
         function [t, V] = watd(s)
             s.set_averaging_mode();
             fprintf(s.scope, 'CLEAR');
-            pause(1.3);
+            pause(2);
             data = str2num(query(s.scope, 'CURVe?'));
             V = ((data-s.YOF)*s.YMU) + s.YZE;                               % convert to time and voltage with the right units
             t = (0:length(V) - 1)*s.XIN + s.XZE;
