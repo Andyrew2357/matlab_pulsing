@@ -26,9 +26,14 @@ classdef watd_MSO44 < handle
             
             fprintf(scope, 'DATA:WIDTh 4');
             fprintf(scope, 'DATA:ENCdg ASCII');                             % change the encoding scheme for queried waveform to ASCII
-            s.update_WFMO()
+            s.update_WFMO();
+            
+            if cap_coupled 
+                s.set_averaging_mode(); 
+            else
+                s.set_bal_meas_mode();
+            end
 
-            s.averaging = false;
         end
 
         function set_ch(s, val)
@@ -75,7 +80,8 @@ classdef watd_MSO44 < handle
 
         function [t, V] = watd(s)
             s.set_averaging_mode();
-            pause(1);
+            fprintf(s.scope, 'CLEAR');
+            pause(1.3);
             data = str2num(query(s.scope, 'CURVe?'));
             V = ((data-s.YOF)*s.YMU) + s.YZE;                               % convert to time and voltage with the right units
             t = (0:length(V) - 1)*s.XIN + s.XZE;
@@ -85,7 +91,6 @@ classdef watd_MSO44 < handle
             if s.averaging, return; end
             fprintf(s.scope, 'FASTAcq:STATE ON');
             fprintf(s.scope, 'ACQuire:MODE AVERage');
-            fprintf(s.scope, 'CLEAR');
             s.averaging = true;
         end
 
@@ -94,7 +99,7 @@ classdef watd_MSO44 < handle
             fprintf(s.scope, 'FASTAcq:STATE OFF');
             fprintf(s.scope, ':ACQuire:MODE HIRes');
             s.averaging = false;
-            pause(0.5)
+            pause(0.5);
         end
 
     end

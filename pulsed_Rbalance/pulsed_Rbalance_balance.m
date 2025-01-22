@@ -41,9 +41,9 @@ function success = pulsed_Rbalance_balance(config)
 
     % Guess the balance point (this can be more sophisticated as we improve)    
     % Determine which points to take for initial guesses. In this case
-    % choose R=0.3 and R=0.5
+    % choose R=10/3 and R=1/2
     xa = clip(0.3*Vx, min_Vy, max_Vy);
-    xb = clip(0.5*Vx, min_Vy, max_Vy);
+    xb = clip(2.0*Vx, min_Vy, max_Vy);
 
     % Take measurements at the points for the initial guesses. If either
     % happens to be good enough, terminate early.
@@ -88,7 +88,8 @@ function success = pulsed_Rbalance_balance(config)
             met_errt = bracket.update_bracket(yITP);                        % update the bracket based on the new measurement
             
             log.history = [log.history, struct('method', "ITP", ...
-                            'xa', xa, 'xb', xb, 'ya', ya, 'yb', yb)];       % add to the log history
+                           'xa', bracket.a, 'xb', bracket.b, ...
+                           'ya', bracket.ya, 'yb', bracket.yb)];            % add to the log history
             
             if met_errt                                                     % have we met the target error bound?
                 log.terminated = "ERROR_BOUND_MET";                         % record termination condition
