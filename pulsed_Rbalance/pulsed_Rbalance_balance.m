@@ -16,6 +16,8 @@ function success = pulsed_Rbalance_balance(config)
     %   max_try:        maximum tries to find an optimal balance point
     %   min_Vy:         minimum value Vy can take
     %   max_Vy:         maximum value Vy can take
+    %   predictor:      object for predicting the balance point
+    %   min_intvl:      minimum distance between the two initial guesses
     
     % Parse the config into relevant parameters
     watd        =   config.watd;
@@ -26,6 +28,8 @@ function success = pulsed_Rbalance_balance(config)
     max_try     =   config.max_try;
     min_Vy      =   config.min_Vy;
     max_Vy      =   config.max_Vy;
+    predictor   =   config.predictor;
+    min_intvl   =   config.min_intvl;
     
     Vx = puls.get("Vx1");
     % create the log for this balance point and record the excitation voltage
@@ -40,12 +44,10 @@ function success = pulsed_Rbalance_balance(config)
     min_Vy = max([min_Vy, 0]);
 
     % Guess the balance point (this can be more sophisticated as we improve)    
-    % Determine which points to take for initial guesses. In this case
-    % choose R=10/3 and R=1/2
-    xa = clip(0.3*Vx, min_Vy, max_Vy);
-    xb = clip(2.0*Vx, min_Vy, max_Vy);
+    Rguess = predictor.guess(Vx);
+    xa = clip(Vx/Rguess, min_Vy, max_Vy);
 
-    % Take measurements at the points for the initial guesses. If either
+    % Take measurements at the points for the initial guesses. If it
     % happens to be good enough, terminate early.
     need_refinements = true;
     puls.sweep("Vy1", xa); ya = watd.bal_meas();                            % take the measurement at xa
@@ -55,8 +57,20 @@ function success = pulsed_Rbalance_balance(config)
         success = true;
         log.terminated = "GOOD_GUESS";                                      % record termination condition
     end
-    
+
     if need_refinements
+        Rguess = predictor.refined_guess(Vx, xa, ya);
+        xb = clip(Vx/Rguess, min_Vy, max_Vy);
+        if abs(xb - xa) < min_intvl                                         % if xb is too close to xa, perturb it away from xa
+            sig = sign(xb-xa);
+            xt = xa + sig*min_intvl;
+            if (xt > max_Vy) || (xt < min_Vy)
+                xb = xa - sig*min_intvl;
+            else
+                xb = xt;
+            end
+        end
+
         puls.sweep("Vy1", xb); yb = watd.bal_meas();                        % take the measurement at xb
         log.history = [log.history, struct('method', "GUESS", 'xa', xa, ...
                                            'xb', xb, 'ya', ya, 'yb', yb)];  % add to the log history
@@ -66,6 +80,11 @@ function success = pulsed_Rbalance_balance(config)
             success = true;
             log.terminated = "GOOD_GUESS";                                  % record termination condition
         end
+    end
+
+    if xb > xa
+        xtemp = xa; xa = xb; xb = xtemp;                                    % switch the points if they're in the wrong order
+        ytemp = ya; ya = yb; yb = ytemp;
     end
     
     % Assuming we didn't luck out on our initial guesses, proceed by a root

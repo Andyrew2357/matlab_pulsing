@@ -85,21 +85,23 @@ plot(t, V);
 logfilepath = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\bal_log_0.3_2_ver2.txt';
 logfile = fopen(logfilepath, 'a+');                                         % open the log file for balancing
 
-bal_config.watd     =   watd;
-bal_config.puls     =   pulseshaper;
-bal_config.logfile  =   logfile;
+bal_config.watd         =   watd;
+bal_config.puls         =   pulseshaper;
+bal_config.logfile      =   logfile;
 if inst_config.watd_config.cap_coupled
     % for cap_coupled, this seemed to work okay.
-    bal_config.errt = 0.005;                % 5 mV
-    bal_config.thresh = 4.5e-5;             % 45 uV
+    bal_config.errt     = 0.005;            % 5 mV
+    bal_config.thresh   = 4.5e-5;           % 45 uV
 else
     % for non-cap_coupled this seemed to work okay.
     bal_config.errt     =   0.005;          % 5 mV
     bal_config.thresh   =   4e-4;           % 400 uV
 end
-bal_config.max_try  =   10;
-bal_config.min_Vy   =   0;              %  0.00 V
-bal_config.max_Vy   =   0.43;           %  0.43 V
+bal_config.max_try      =   10;
+bal_config.min_Vy       =   0;              %  0.00 V
+bal_config.max_Vy       =   0.43;           %  0.43 V
+bal_config.predictor    =   dummy_predictor(0.3, 2.0);
+bal_config.min_intvl    =   0.005;           % 5 mV
 
 %% Sweep excitation amplitude and balance at each point
 sweep_log_path = 'C:\Users\pulsing_meas\Documents\MATLAB\matlab_pulsing\pulsed_Rbalance\MSO44_trials\logs\sweep_log_0.3_2_ver2.txt';
