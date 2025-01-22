@@ -1,0 +1,11 @@
+{"Vx":0.1,"success":true,"terminated":"ERROR_BOUND_MET","tries":0,"res":0.10078320602535366,"history":[{"method":"GUESS","xa":0.05,"xb":0.16521750815118652,"ya":0.0043442647868295,"yb":-0.0058719506855484},{"method":"ITP","xa":0.10032171323182908,"xb":0.16521750815118652,"ya":-3.65292233787E-6,"yb":0.0058719506855484},{"method":"ITP","xa":0.10032171323182908,"xb":0.10078320602535366,"ya":-3.65292233787E-6,"yb":0.00014578537830264231}],"steps":2}
+{"Vx":0.11,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.11086152662788902,"history":[],"steps":0}
+{"Vx":0.12000000000000001,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.12093984723042442,"history":[],"steps":0}
+{"Vx":0.13,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.13101816783295986,"history":[],"steps":0}
+{"Vx":0.14,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.14109648843549533,"history":[],"steps":0}
+{"Vx":0.15000000000000002,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.15117480903803082,"history":[],"steps":0}
+{"Vx":0.16,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.16125312964056635,"history":[],"steps":0}
+{"Vx":0.17,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.1713314502431019,"history":[],"steps":0}
+{"Vx":0.18,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.1814097708456375,"history":[],"steps":0}
+{"Vx":0.19,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.19148809144817325,"history":[],"steps":0}
+{"Vx":0.2,"success":true,"terminated":"GOOD_GUESS","tries":0,"res":0.20156641205070908,"history":[],"steps":0}

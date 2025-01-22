@@ -58,7 +58,7 @@ function success = pulsed_Rbalance_balance(config)
         log.terminated = "GOOD_GUESS";                                      % record termination condition
     end
 
-    if need_refinements
+    if need_refinements                                                     % If our guess wasn't spot on
         Rguess = predictor.refined_guess(Vx, xa, ya);
         xb = clip(Vx/Rguess, min_Vy, max_Vy);
         if abs(xb - xa) < min_intvl                                         % if xb is too close to xa, perturb it away from xa
@@ -80,11 +80,11 @@ function success = pulsed_Rbalance_balance(config)
             success = true;
             log.terminated = "GOOD_GUESS";                                  % record termination condition
         end
-    end
 
-    if xb > xa
-        xtemp = xa; xa = xb; xb = xtemp;                                    % switch the points if they're in the wrong order
-        ytemp = ya; ya = yb; yb = ytemp;
+        if xb < xa
+            xtemp = xa; xa = xb; xb = xtemp;                                % switch the points if they're in the wrong order
+            ytemp = ya; ya = yb; yb = ytemp;
+        end
     end
     
     % Assuming we didn't luck out on our initial guesses, proceed by a root
@@ -156,6 +156,7 @@ function success = pulsed_Rbalance_balance(config)
     end
 
     Vy = puls.get("Vy1");
+    predictor.append(Vx, Vx/Vy);                                            % update the predictor with the most recent result.
 
     % fill out the rest of the logging info
     log.success = success;

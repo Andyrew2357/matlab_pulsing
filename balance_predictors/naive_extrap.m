@@ -36,7 +36,7 @@ classdef naive_extrap < handle
 
         function R = guess(s, Vx)
             if s.buffer == s.support                % If we have no data, return 1
-                R = 1;
+                R = 2;
                 return
             end
 
@@ -46,7 +46,7 @@ classdef naive_extrap < handle
         end
 
         function R = refined_guess(s, Vx, prev_Vy, y)
-            falsi = -(s.gain*Vx - y)/(s.gain*prev_Vy - y);
+            falsi = (s.gain*Vx - y)/(s.gain*prev_Vy + y);   % false point to assume based on the output signal
             R = extrap1d([s.Vxdat(s.buffer+1:end), Vx], ...
                          [s.Rdat(s.buffer+1:end), falsi], ...
                          Vx, s.support, s.order);   % extrapolate based on the previous data and a gain-dependent off-balance estimate.

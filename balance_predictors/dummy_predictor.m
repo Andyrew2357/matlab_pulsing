@@ -2,7 +2,8 @@
 
 classdef dummy_predictor < handle
     properties
-        Rguessa;     % guessed R
+        Rguessa;     % first guessed R
+        Rguessb;     % second guessed R
     end
 
     methods
@@ -15,11 +16,11 @@ classdef dummy_predictor < handle
             % This predictor doesn't keep track of prior data
         end
 
-        function R = guess(s)
+        function R = guess(s, varargin)
             R = s.Rguessa;  % return whatever we set our guess as
         end
 
-        function R = refined_guess(s)
+        function R = refined_guess(s, varargin)
             R = s.Rguessb;  % return whatever we set our guess as
         end
     end
