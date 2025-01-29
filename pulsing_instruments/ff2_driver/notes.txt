@@ -1,0 +1,4 @@
+1. Installed python choosing to add it to path during installation
+2. pip install pyusb
+3. pip install libusb
+4. Added C:\Users\pulsing_meas\AppData\Local\Programs\Python\Python313\Lib\site-packages\libusb\_platform\_windows\x64 as an environment variable (location of libusb-1.0.dll)
