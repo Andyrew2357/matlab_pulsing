@@ -1,5 +1,6 @@
 from lusb import *
 import usb.util
+import string
 
 class usbInterface:
 
@@ -33,3 +34,14 @@ class usbInterface:
     def Control(self, requestType, request, val, index, data_or_len, timeout=None):
         if timeout is None: timeout = self.defaultTimeout
         return self.dev.ctrl_transfer(requestType, request, val, index, data_or_len, timeout)
+    
+    def binaryDump(data):
+        if len(data) > 64: return
+        for b in data: print(f"0x{b:02x}", end="")
+        print(" [", end="")
+        for b in data:
+            if chr(b) in string.printable: 
+                print(chr(b), end="")
+            else:
+                print(".", end="")
+        print("]")

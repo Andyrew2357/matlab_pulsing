@@ -1,6 +1,12 @@
 FF2_VID = 0x0a2d            # Vendor ID
 FF2_PID = 0x0015            # Product ID
 MAX_BULK_SIZE = 0xffc0
+CHUNK_SIZE = 2<<14
+DITHER_LEN = 0.
+TRAC_LEN = 10e3
+OFFSET = -0.25
+TRIG_THRESH = 0.
+TPP = 1.
 
 # Endpoint Numbers
 CONTROL_OUT = 0x01          # Endpoints for USB Control

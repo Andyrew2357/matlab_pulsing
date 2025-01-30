@@ -4,6 +4,7 @@ import usb.core
 import math
 from enum import IntEnum
 import errno
+import os
 from warnings import warn
 
 def memcmp(a, b):
@@ -12,23 +13,130 @@ def memcmp(a, b):
 class FastFlight2(usbInterface):
     def __init__(self):
         super().__init__(FF2_VID, FF2_PID)
+        self.lastfile = -1
         self.db = self.dataBuffer()
         self.settings = self.Protocol()
+        self.maxProtocol = 16
+        self.lastSent = [self.Protocol() for _ in range(self.maxProtocol)]
+
+        self.__init()
+        self.setTraceLength(TRAC_LEN)
+        self.setOffset(OFFSET)
+        self.setTriggerThreshold(TRIG_THRESH)
+        self.setTimePerPoint(TPP)
+        self.setExternalTrigger(True)
+        self.setTriggerEnableHigh(False)
+        self.setTriggerRising(True)
+        self.setRapidProtocolSelection(True)
 
     def __sendFile(self, fname):
-        pass
+        batch = firstbatch = rest = 0x20
+        hunk_count = 0
+
+        buf = bytearray(rest)
+        n = os.path.join(FPGA_DIR, fname)
+        print(f"Sending file \"{n}\" to chip {self.lastfile:x}")
+
+        try:
+            with open(n, 'rb') as f:
+                buf[0] = self.lastfile + 1
+                s = f.read(firstbatch - 1)
+                buf[1:len(s) + 1] = s
+                print(f"Writing hunk 0x{hunk_count:06x}\r", end="")
+                self.Write(CONTROL_OUT, buf[:len(s) + 1], 500)
+                ret = self.Read(CONTROL_IN, 1)
+                assert(ret[0] == 0)
+                if len(s) != firstbatch - 1: return
+
+                while True:
+                    s = f.read(rest - 1)
+                    if not s: break
+                    if hunk_count % 0x10 == 0:
+                        print(f"Writing hunk 0x{hunk_count:06x}\r", end="")
+                        hunk_count+=1
+
+                        buf[1:len(s)+1] = s
+                        self.dev.write(self.control_out, buf[:len(s)+1])
+                        ret = self.dev.read(self.control_in, 1)
+                        assert ret[0] == 0
+            
+            print(f"Writing hunk.......... Done ({hunk_count} hunks)")
+        
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                raise IOError(f"Unable to open FPGA file \"{n}\": {os.strerror(e.errno)}")
+            else:
+                raise
 
     def __sendFirmware(self):
-        pass
+        buf = bytearray(8)
+        right = bytearray([0x42, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+        self.Control(usb.util.CTRL_TYPE_VENDOR | 
+                     usb.util.CTRL_RECIPIENT_DEVICE | 
+                     usb.util.CTRL_IN,
+                     0xa2, 0xfff0, 0, buf)
+        if buf != right:
+            print("Unexpected Response Sending Firmware\n")
+            print("Expected: ")
+            self.binaryDump(right)
+            print("Got: ")
+            self.binaryDump(buf)
+
+        self.__setupFile(0x4)
+        self.__sendFile("AcqControl.rbf")
+        
+        self.__setupFile(0x6)
+        self.__sendFile("pipes.rbf")
+        self.__sendFile("pipes.rbf")
+        self.__sendFile("pipes.rbf")
+        self.__sendFile("pipes4P2.rbf")
+
+        self.__setupFile(0x8)
+        self.__sendFile("compressionfpga.rbf")
+
+        self.__setupFile(0xc)
+        self.__sendFile("00_AnalogFPGA.rbf")
+        self.__sendFile("TrigProcFPGA.rbf")
+
+        self.__setupFile(0xa)
+        self.__sendFile("fanout.bin")
+
+        buf = bytearray([0xe, 0xdf])
+        self.Write(CONTROL_OUT, buf)
+        ret = self.Read(CONTROL_IN, 1)
+        assert(ret == 0)
+        buf[1] = bytes(0xd7)
+        self.Write(CONTROL_OUT, buf)
+        ret = self.Read(CONTROL_IN, 1)
+        assert(ret == 0)
+        buf[1] = bytes(0x95)
+        self.Write(CONTROL_OUT, buf)
+        ret = self.Read(CONTROL_IN, 1)
+        assert(ret == 0)
+        buf[1] = bytes(0x00)
+        self.Write(CONTROL_OUT, buf)
+        ret = self.Read(CONTROL_IN, 1)
+        assert(ret == 0)
+
+        self.__strangeDance()
 
     def __setupFile(self, chip):
-        pass
+        if chip == self.lastfile: return
+        self.lastfile = chip
+        buf = bytes([chip])
+        self.Write(CONTROL_OUT, buf)
+        resp = self.Read(CONTROL_IN, 1)
+        assert resp[0] == 0
     
     def __init(self):
         self.dev.clear_halt(CONTROL_OUT)
         self.dev.clear_halt(CONTROL_IN)
-        # IMPLEMENT ME
-        pass
+        if not self.isInitialized():
+            warn("Device is not yet initialized. Sending firmware.\n")
+            self.__sendFirmware()
+        self.stopAquisition()
+        self.clearBuffer()
+        self.resetTimer()
 
     def __strangeDance(self):
         for i, move in enumerate(STRANGE_DANCE):
@@ -76,6 +184,7 @@ class FastFlight2(usbInterface):
 
             self.singleIonLength = 100              # Nanoseconds
             self.singleIonStart = 100               # Nanoseconds
+            self.sent = False
 
         class TPP(IntEnum):
             INT_250ps = 0x10
@@ -282,13 +391,35 @@ class FastFlight2(usbInterface):
             return None
 
     def isInitialized(self):
-        pass
+        isInitCmd = bytes([0x0f])
+        try:
+            self.Write(CONTROL_OUT, isInitCmd)
+            resp = self.Read(CONTROL_IN, 1)
+            if resp[0] not in [0, 1]:
+                raise ValueError(f"Never-before-seen response code 0x{resp[0]:02x} to 0x{isInitCmd[0]:02x}")
+            return resp[0] == 1
+        except usb.core.USBError as e:
+            print(f"USB Error: {e}")
+            return False
+            
+    def sendProtocol(self, p, slot):
+        # p is a Protocol object
+        assert(slot >= 0 and slot <= self.maxProtocol)
+        if self.lastSent[slot].sent == True and self.lastSent[slot] == p: return
+        p.stuff()
+        self.lastSent[slot] = p
+        self.lastSent[slot].sent = True
+        self.Control(usb.util.CTRL_TYPE_VENDOR | 
+                     usb.util.CTRL_RECIPIENT_DEVICE | 
+                     usb.util.ENDPOINT_OUT, MEMORY_SET_REQUEST,
+                     PROTOCOL_BASE + slot*PROTOCOL_STEP, 0, p.b1)
+        self.Control(usb.util.CTRL_TYPE_VENDOR | 
+                     usb.util.CTRL_RECIPIENT_DEVICE | 
+                     usb.util.ENDPOINT_OUT, MEMORY_SET_REQUEST,
+                     PROTOCOL_BASE + slot*PROTOCOL_STEP + 0xe, 0, p.b2)
 
-    def sendProtocol(self):
-        pass
-
-    def setProtocol(self):
-        pass
+    def setProtocol(self, slot):
+        self.setMemory(PROTOCOL_SET_PTR, slot)
 
     def getExternalTrigger(self):
         return self.getMemory() & EXT_TRIGGER_MASK
@@ -390,9 +521,9 @@ class FastFlight2(usbInterface):
         self.setMemory(MISC_CNTRL_PTR, m)
 
     def clearBuffer(self):
-        cmd2 = 0x12
+        cmd2 = bytes([0x12])
         self.setParameter(0x07, 0x20)
-        self.Write(CONTROL_OUT, [cmd2])
+        self.Write(CONTROL_OUT, cmd2)
         res = self.Read(CONTROL_IN, 1)
         assert res[0] == 1, "Expected 1, got {}".format(res[0])
         self.setParameter(0x07, 0x00)
@@ -428,7 +559,6 @@ class FastFlight2(usbInterface):
 
     def takeSweepDither(self):
         pass
-
 
     def getSpectrum(self):
         pass
