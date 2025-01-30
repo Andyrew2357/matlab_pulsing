@@ -1,0 +1,10 @@
+HOW TO COMMUNICATE WITH FASTFLIGHT
+
+ActiveX DLL (FF2Ctrl.dll)
+
+FF2CtrlObj 	- main controlling object
+GSObj      	- settings object
+ProtocolObj	- protocol dependent settings
+TOFObj		- properties of TOF spectrum (how does this come in for us?)
+
+
