@@ -400,6 +400,7 @@ class FastFlight2(usbInterface):
             return None
 
     def isInitialized(self):
+        return True # FOR DEBUGGING PURPOSES
         isInitCmd = bytes([0x0f])
         try:
             self.Write(CONTROL_OUT, isInitCmd)
