@@ -7,8 +7,11 @@ import errno
 import os
 from warnings import warn
 
-def memcmp(a, b):
-    return bytes(a) == bytes(b)
+def memcmp(a, b): return bytes(a) == bytes(b)
+def firstByte(a): return (a & 0xff000000)>>24
+def secondByte(a): return (a & 0x00ff0000)>>16
+def thirdByte(a): return (a & 0x0000ff00)>>8
+def fourthByte(a): return (a & 0x000000ff)
 
 class FastFlight2(usbInterface):
     def __init__(self):
@@ -329,8 +332,14 @@ class FastFlight2(usbInterface):
     def loadBackgroundCal(self):
         pass
 
-    def applyCalibration(self):
-        pass
+    def applyCalibration(self, data, length):
+        if len(self.backgroundCal) == 0: return data
+        if length > len(self.backgroundCal): raise IndexError("Too many samples acquired for current background calibration")
+
+        scale, offset, tscale = self.getScale()
+        print("Using background calibration")
+        for i in range(length): data[i] -= self.backgroundCal[i] / scale
+        return data
 
     def setRapidProtocolSelection(self, state):
         c = self.getMemory(MISC_CNTRL_PTR)
@@ -554,15 +563,6 @@ class FastFlight2(usbInterface):
         e = self.getMemory()
         self.setMemory(MISC_CNTRL_PTR, e & ~RUN_MASK)
 
-    def takeSweep(self):
-        pass
-
-    def takeSweepDither(self):
-        pass
-
-    def getSpectrum(self):
-        pass
-
     def getCodeType(self, word):
         if (word & 0xff000000) != 0xff000000:
             return self.codeType_t.NOT_CODE
@@ -639,6 +639,13 @@ class FastFlight2(usbInterface):
         self.db.unget = c
         self.db.bytecount-=1
 
+    def getWord(self, target=-1):
+        i = self.get(target)
+        i |= self.get(target) * 0x100
+        i |= self.get(target) * 0x10000
+        i |= self.get(target) * 0x1000000
+        return i
+
     def synchronize(self): # look for spectrum sync marker
         cTarget = 8
         c = 0
@@ -652,3 +659,236 @@ class FastFlight2(usbInterface):
                     return
             else:
                 c = 0
+
+    def getSpectrum(self, length):
+        data = bytearray(length)
+        index = t = spectrumNumber = _index = spectrumLength = lastCodeType = 0
+        # goto resync
+        def resync(): # return here if we get an unexpected synchronize or get confused
+            nonlocal index, t, spectrumNumber, _index, spectrumLength, lastCodeType
+            index = 0
+            self.db.reset()
+            t = self.getWord()
+            if self.getCodeType(t) != self.codeType_t.SPECTRUM_BEGIN:
+                print(f"Corrupt spectrum on spectrum length; got 0x{t:08x}, codetype 0x{self.getCodeType(t):x}")
+                self.synchronize()
+                resync()
+            t&=CODE_DATA_MASK
+            spectrumNumber = t
+            _index = spectrumNumber
+
+            t = self.getWord()
+            if self.getCodeType(t) != self.codeType_t.SPECTRUM_BEGIN:
+                print(f"Corrupt spectrum on spectrum length; got 0x{t:08x}, codetype 0x{self.getCodeType(t):x}")
+                self.synchronize()
+                resync()
+
+            spectrumLength = t & CODE_DATA_MASK
+            lastCodeType = self.codeType_t.SPECTRUM_BEGIN
+
+        spectrumNumber = -1
+        self.synchronize()
+        resync()
+        while True:
+            t = self.getWord()
+            codeType = self.getCodeType(t)
+            match codeType:
+                case self.codeType_t.DATA_16BIT | self.codeType_t.DATA_24BIT:
+                    if index != (t & CODE_DATA_MASK):
+                        print(f"Found jump to {t & CODE_DATA_MASK} from {index}, code 0x{t:x}, codetype 0x{codeType:x}")
+                        index = t & CODE_DATA_MASK
+
+                        if index > length:
+                            print("Illegal jump; resyncing!")
+                            self.synchronize(); resync(); continue # goto retry
+
+                case self.codeType_t.NOT_CODE:
+                    if index + 4 > length:
+                        print(f"Too many data bytes; {index+4}>{length}. Retrying")
+                        self.synchronize(); resync(); continue # goto retry
+
+                    match lastCodeType:
+                        case self.codeType_t.DATA_16BIT:
+                            u = self.getWord()
+                            data[index] = (firstByte(t)<<8) | firstByte(u); index+=1
+                            data[index] = (secondByte(t)<<8) | secondByte(u); index+=1
+                            data[index] = (thirdByte(t)<<8) | thirdByte(u); index+=1
+                            data[index] = (fourthByte(t)<<8) | fourthByte(u); index+=1
+
+                        case self.codeType_t.DATA_24BIT:
+                            u = self.getWord()
+                            v = self.getWord()
+                            data[index] = firstByte(t)<<16 + firstByte(u)<<8 + firstByte(v); index+=1
+                            data[index] = secondByte(t)<<16 + secondByte(u)<<8 + secondByte(v); index+=1
+                            data[index] = thirdByte(t)<<16 + thirdByte(u)<<8 + thirdByte(v); index+=1
+                            data[index] = fourthByte(t)<<16 + fourthByte(u)<<8 + fourthByte(v); index+=1
+                        
+                        case _:
+                            print(f"Unknown data type following code 0x{lastCodeType:x}")
+
+                case self.codeType_t.SPECTRUM_END:
+                    l = t & CODE_DATA_MASK
+                    if l != spectrumLength:
+                        print(f"Byte count mismatch; retrying (0x{spectrumLength:06x} != 0x{l:06x})")
+                        self.synchronize(); resync(); continue # goto retry
+                    if l*4 != 8 + self.db.bytecount:
+                        print(f"Read {8 + self.db.bytecount} bytes, expected {l*4}. Retrying")
+                        self.synchronize(); resync(); continue # goto retry
+                    
+                    return index, data
+
+                case self.codeType_t.DATA_STICK:
+                    print(f"Stick data not supported; assuming comm error.")
+                    self.synchronize(); resync(); continue # goto retry
+
+                case self.codeType_t.TIME_LOW: pass
+                case self.codeType_t.TIME_HIGH: pass
+                
+                case self.codeType_t.PROTOCOL: self.__lastProtocol = t & CODE_DATA_MASK
+                
+                case self.codeType_t.ION_COUNT:
+                    if (t & CODE_DATA_MASK == CODE_DATA_MASK):
+                        u = self.getWord()
+                        if u == 0xffffffff:
+                            print("Unexpected synchronize; restarting.")
+                            resync(); continue # goto resync
+                        else:
+                            print("Unexpected partial resync; restarting.")
+                            self.synchronize(); resync; continue # goto retry
+                    
+                    u = self.getWord()
+                    self.getWord()
+                    self.getWord()
+                    self.__overload = 0
+                    if u & 0x00008000: self.__overload |= OVERLOAD
+                    if u & 0x80000000: self.__overload |= UNDERLOAD
+                
+                case _:
+                    print("Unhandled code word 0x{t:08x}")
+
+    def takeSweep(self, length, sweeps):
+        if (sweeps > CHUNK_SIZE) and (DITHER_LEN != 0):
+            return self.takeSweep_dither(length, sweeps)
+        
+        final = 0
+        stop = False
+        sweep = 0
+        buf2 = [0 for _ in range(len)]
+
+        if sweeps < CHUNK_SIZE:
+            self.settings.recordsPerSpectrum = sweeps
+            self.sendProtocol(self.settings, 0)
+            self.setProtocol(0)
+            self.startAquisition()
+            l1, buf = self.getSpectrum(length)
+            self.__rps = sweeps
+
+        else:
+            final = sweeps - (sweeps // CHUNK_SIZE)*CHUNK_SIZE
+            self.settings.recordsPerSpectrum = CHUNK_SIZE
+            self.sendProtocol(self.settings, 0)
+            if final != 0:
+                self.settings.recordsPerSpectrum = final
+            else:
+                final = CHUNK_SIZE
+            self.sendProtocol(self.settings, 1)
+            self.setProtocol(0)
+            self.startAquisition()
+            l1, buf = self.getSpectrum(length)
+            rep_count = 2 if self.settings.recordLength > 40000 else 1
+
+            self.__reps = CHUNK_SIZE
+            while self.__reps < sweeps and not stop:
+                if sweeps - (self.__rps + CHUNK_SIZE) < CHUNK_SIZE: self.setProtocol(1)
+
+                l2, buf2 = self.getSpectrum(length)
+                for i in range(length): buf[i] += buf2[i]
+
+                if self.__rps % rep_count == 0:
+                    print(f"Sweep {self.__rps}/{sweeps} ({self.getLastProtocol()})")
+                
+                if self.getLastProtocol == 1:
+                    if final == 0: print(f"Crazy; we found a protocol 1 spectrum before we were ready ({final})!")
+                    self.__rps += final
+                
+                else:
+                    self.__rps += CHUNK_SIZE
+                
+                if l2 != l1: print(f"Trace length mismatch: {l2} != {l1}")
+            
+        if self.__rps != sweeps: print(f"Accidentally took too many sweeps ({self.__rps} > {sweeps}) {"STOP" if stop else ""}")
+        self.stopAquisition()
+
+        buf = self.applyCalibration(buf, length)
+        return l1, buf
+
+    def takeSweep_dither(self, length, sweeps):
+        final = 0
+        stop = False
+        sweep = 0
+        buf2 = [0 for _ in range(len)]
+        oorigin = self.settings.voltageOffset
+
+        if sweeps < CHUNK_SIZE:
+            self.settings.recordsPerSpectrum = sweeps
+            self.sendProtocol(self.settings, 0)
+            self.setProtocol(0)
+            self.startAquisition()
+            l1, buf = self.getSpectrum(length)
+            self.__rps = sweeps
+            offset = 0
+
+        else:
+            chunks = min(sweeps // CHUNK_SIZE, self.maxProtocol - 1)
+            final = sweeps - (sweeps // CHUNK_SIZE)*CHUNK_SIZE
+            ostep = DITHER_LEN // chunks
+            self.settings.recordsPerSpectrum = CHUNK_SIZE
+            for i in range(chunks): 
+                self.settings.voltageOffset = oorigin + i*ostep
+                self.sendProtocol(self.settings, i)
+            if final != 0:
+                self.settings.recordsPerSpectrum = final
+            else:
+                final = CHUNK_SIZE
+
+            self.settings.voltageOffset = oorigin
+            self.sendProtocol(self.settings, self.maxProtocol - 1)
+            self.setProtocol(sweep % chunks); sweep+=1
+            self.startAquisition()
+            self.setProtocol(sweep % chunks); sweep+=1
+            l1, buf = self.getSpectrum(length)
+            rep_count = 2 if self.settings.recordLength > 40000 else 1
+
+            self.__reps = CHUNK_SIZE
+            while self.__reps < sweeps and not stop:
+                print(f"Sweep {self.__rps}/{sweeps}\r", end="")
+                if sweeps - (self.__rps + CHUNK_SIZE) < CHUNK_SIZE: 
+                    self.setProtocol(self.maxProtocol - 1)
+                else:
+                    self.setProtocol(sweep % chunks); sweep+=1
+
+                l2, buf2 = self.getSpectrum(length)
+                for i in range(length): buf[i] += buf2[i]
+
+                if self.getLastProtocol() == self.maxProtocol - 1:
+                    if final == 0: print(f"Crazy; we found a protocol 1 spectrum before we were ready ({final})!")
+                    self.__rps += final
+                else:
+                    self.__rps += CHUNK_SIZE
+
+                if self.__rps % rep_count == 0: print(f"Sweep {self.__rps}/{sweeps} ({self.getLastProtocol()})")
+                if l2 != l1: 
+                    print(f"Trace length mismatch: {l2} != {l1}")
+                else:
+                    if self.getLastProtocol() != self.maxProtocol - 1:
+                        o = 512 * ostep * self.getLastProtocol() * CHUNK_SIZE
+                        offset += o
+
+        for i in range(length): buf[i] += offset
+        if self.__rps != sweeps: 
+            print(f"Accidentally took too many sweeps ({self.__rps} > {sweeps}) {"STOP" if stop else ""}")
+            for i in range(length): buf[i] *= sweeps // self.__rps
+        self.stopAquisition()
+
+        buf = self.applyCalibration(buf, length)
+        return l1, buf
