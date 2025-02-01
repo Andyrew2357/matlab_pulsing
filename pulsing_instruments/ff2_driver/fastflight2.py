@@ -16,6 +16,8 @@ def fourthByte(a): return (a & 0x000000ff)
 class FastFlight2(usbInterface):
     def __init__(self):
         super().__init__(FF2_VID, FF2_PID)
+        self.defaultTimeout = 500 # 500 ms
+
         self.lastfile = -1
         self.db = self.dataBuffer()
         self.settings = self.Protocol()
@@ -250,7 +252,7 @@ class FastFlight2(usbInterface):
             self.b1[6] = (self.recordsPerSpectrum // 0x100) & 0xff
 
             # This formula is a guess
-            i = int(round(((self.voltageOffset + 0.25) / 0.5) * 65535))
+            i = int(round(((self.voltageOffset + 0.25) / 0.5) * 65535.))
             i = max(0, min(0xffff, i))
             self.b1[8] = i & 0x00ff
             self.b1[9] = (i & 0xff00) // 0x100

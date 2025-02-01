@@ -1,7 +1,7 @@
 FF2_VID = 0x0a2d            # Vendor ID
 FF2_PID = 0x0015            # Product ID
 MAX_BULK_SIZE = 0xffc0
-CHUNK_SIZE = 2<<14
+CHUNK_SIZE = 1<<15
 DITHER_LEN = 0.
 TRAC_LEN = 10e3
 OFFSET = -0.25
